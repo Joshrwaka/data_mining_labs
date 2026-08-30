@@ -1,0 +1,100 @@
+---
+title: "Q7_Chapter5"
+author: "SHEMA Joshua"
+date: "2026-08-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 5, Exercise 7
+
+LOOCV test error for a logistic regression on the `Weekly` data, using `glm()` and a `for` loop instead of `cv.glm()`. For classification, the LOOCV error is the fraction of held-out observations that are misclassified (ISLR equation 5.4).
+
+```{r}
+library(ISLR2)
+data(Weekly)
+dim(Weekly)
+names(Weekly)
+```
+
+## (a) Fit logistic regression of Direction on Lag1 and Lag2
+
+```{r}
+glm.fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial)
+summary(glm.fit)
+```
+
+**Answer.** Both `Lag1` and `Lag2` have small coefficients. `Lag1` is not significant ($p \approx 0.15$); `Lag2` is borderline / weakly significant depending on the usual 5% cutoff. The residual deviance is only slightly smaller than the null deviance, so this is a weak classifier: weekly lags explain little of `Direction`.
+
+## (b) Refit using all but the first observation
+
+```{r}
+glm.fit.lo <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-1, ], family = binomial)
+summary(glm.fit.lo)
+```
+
+**Answer.** The coefficients are almost identical to part (a), as expected: dropping one of $n = 1089$ weeks barely changes the fit.
+
+## (c) Classify the held-out first observation
+
+Predict Up if $P(\text{Direction}=\text{Up} \mid \text{Lag1}, \text{Lag2}) > 0.5$.
+
+```{r}
+Weekly[1, c("Lag1", "Lag2", "Direction")]
+
+phat <- predict(glm.fit.lo, newdata = Weekly[1, ], type = "response")
+phat
+pred <- ifelse(phat > 0.5, "Up", "Down")
+pred
+
+## Was the first week classified correctly?
+as.character(Weekly$Direction[1]) == pred
+```
+
+**Answer.** The estimated probability that the market goes **Up** is about **0.571**, which is greater than 0.5, so we predict **Up**. The true `Direction` of the first observation is **Down**, so this held-out week is **misclassified**.
+
+## (d) LOOCV loop
+
+For $i = 1, \ldots, n$:
+
+1. Fit logistic regression of `Direction` on `Lag1` and `Lag2` using all but the $i$th observation.
+2. Compute $P(\text{Up})$ for the $i$th observation.
+3. Predict Up if that probability exceeds 0.5.
+4. Record error = 1 if the prediction is wrong, 0 otherwise.
+
+```{r loocv-loop, cache=TRUE}
+n <- nrow(Weekly)
+error <- rep(0, n)
+
+for (i in 1:n) {
+  fit.i <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-i, ], family = binomial)
+  phat.i <- predict(fit.i, newdata = Weekly[i, ], type = "response")
+  pred.i <- ifelse(phat.i > 0.5, "Up", "Down")
+  if (pred.i != as.character(Weekly$Direction[i])) {
+    error[i] <- 1
+  }
+}
+
+## first few error indicators (0 = correct, 1 = wrong)
+head(error)
+sum(error)   # number of misclassified weeks
+```
+
+## (e) Average the $n$ errors = LOOCV test-error estimate
+
+```{r}
+mean(error)
+```
+
+**Answer.** The LOOCV estimate of the test error rate is **0.450** (490 of 1089 weeks misclassified, about 45%). That is only a little better than guessing, and almost the same as always predicting **Up** (error 0.444, since the market goes up on a slight majority of weeks). So `Lag1` and `Lag2` do not give a useful out-of-sample classifier for `Direction`.
+
+```{r}
+## Naive baseline: always predict the majority class
+mean(Weekly$Direction != "Up")
+table(Weekly$Direction)
+```
+
+Always predicting **Up** has error about `r round(mean(Weekly$Direction != "Up"), 3)`. LOOCV for the two-lag logistic model is essentially the same, which confirms that the lags add almost no genuine predictive power.

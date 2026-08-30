@@ -1,0 +1,144 @@
+---
+title: "Q2_Chapter5"
+author: "SHEMA Joshua"
+date: "2026-08-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 5, Exercise 2
+
+We derive the probability that a given observation is part of a bootstrap sample. Suppose we obtain a bootstrap sample from a set of $n$ observations.
+
+## (a)
+
+**Question.** What is the probability that the first bootstrap observation is *not* the $j$th observation from the original sample?
+
+**Answer.** A bootstrap sample is drawn **with replacement**, so each draw is equally likely to be any of the $n$ original observations. The probability that the first bootstrap draw equals observation $j$ is $1/n$. Therefore the probability that it is *not* observation $j$ is
+
+$$
+1 - \frac{1}{n}.
+$$
+
+```{r}
+## Probability the first bootstrap draw is not observation j
+n <- 5
+1 - 1 / n
+```
+
+## (b)
+
+**Question.** What is the probability that the second bootstrap observation is not the $j$th observation from the original sample?
+
+**Answer.** Bootstrap draws are independent (sampling with replacement). The second draw has the same distribution as the first, so the probability is again
+
+$$
+1 - \frac{1}{n}.
+$$
+
+```{r}
+## Independent of the first draw
+1 - 1 / n
+```
+
+## (c)
+
+**Question.** Argue that the probability that the $j$th observation is *not* in the bootstrap sample is $(1 - 1/n)^n$.
+
+**Answer.** A bootstrap sample of size $n$ consists of $n$ independent draws. Observation $j$ is missing from the whole sample only if it is missed on **every** draw. Each draw misses $j$ with probability $1 - 1/n$, so
+
+$$
+P(j \notin \text{bootstrap sample}) = \left(1 - \frac{1}{n}\right)^n.
+$$
+
+Hence the probability that $j$ **is** in the bootstrap sample is
+
+$$
+P(j \in \text{bootstrap sample}) = 1 - \left(1 - \frac{1}{n}\right)^n.
+$$
+
+As $n \to \infty$ this tends to $1 - e^{-1} \approx 0.632$. About 63% of the original observations appear in a typical bootstrap sample; about 37% are left out.
+
+## (d) $n = 5$
+
+```{r}
+n <- 5
+p_in <- 1 - (1 - 1 / n)^n
+p_in
+```
+
+When $n = 5$,
+
+$$
+1 - (1 - 1/5)^5 = 1 - (0.8)^5 = 1 - 0.32768 = 0.67232.
+$$
+
+The $j$th observation is in the bootstrap sample with probability about **0.672**.
+
+## (e) $n = 100$
+
+```{r}
+n <- 100
+1 - (1 - 1 / n)^n
+```
+
+When $n = 100$ the probability is about **0.634**.
+
+## (f) $n = 10{,}000$
+
+```{r}
+n <- 10000
+1 - (1 - 1 / n)^n
+```
+
+When $n = 10{,}000$ the probability is about **0.632**, already very close to $1 - 1/e$.
+
+## (g) Plot for $n = 1, \ldots, 100{,}000$
+
+```{r}
+n_vals <- 1:100000
+p_in <- 1 - (1 - 1 / n_vals)^n_vals
+
+plot(n_vals, p_in, type = "l", log = "x",
+     xlab = "n (log scale)",
+     ylab = "P(observation j is in the bootstrap sample)",
+     main = "Bootstrap inclusion probability vs n",
+     col = "steelblue", lwd = 2)
+abline(h = 1 - exp(-1), col = "firebrick", lty = 2, lwd = 2)
+legend("bottomright",
+       legend = c("1 - (1 - 1/n)^n", "1 - 1/e = 0.632"),
+       col = c("steelblue", "firebrick"), lty = c(1, 2), lwd = 2, bty = "n")
+```
+
+**Comment.** The probability starts at 1 when $n = 1$ (the single observation must be chosen). It then drops quickly and levels off near $1 - 1/e \approx 0.632$. For any realistically large data set, a given observation has about a **63.2%** chance of appearing in a given bootstrap sample.
+
+```{r}
+c(n5 = 1 - (1 - 1/5)^5,
+  n100 = 1 - (1 - 1/100)^100,
+  n10000 = 1 - (1 - 1/10000)^10000,
+  limit = 1 - exp(-1))
+```
+
+## (h) Numerical check with $n = 100$, $j = 4$
+
+The book’s experiment: draw 10{,}000 bootstrap samples of size 100 and record whether observation 4 appears.
+
+```{r}
+set.seed(1)
+store <- rep(NA, 10000)
+for (i in 1:10000) {
+  store[i] <- sum(sample(1:100, replace = TRUE) == 4) > 0
+}
+mean(store)
+```
+
+**Comment.** The simulated proportion is **0.6417**, which matches the theoretical value from (e),
+
+$$
+1 - (1 - 1/100)^{100} \approx 0.634.
+$$
+
+Sampling variation of order $1/\sqrt{10000} \approx 0.01$ is expected. This confirms the formula: each original observation is left out of about 37% of bootstrap samples.
